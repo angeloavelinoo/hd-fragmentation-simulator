@@ -45,25 +45,8 @@ Console.WriteLine("Desfragmentação concluída! Blocos do HD: \n");
 
 void Fragmentacao(string id, string conteudo, int tamanho)
 {
-    int index = hd.Where(x => x.EstaLivre).Select(hd => hd.Index).FirstOrDefault(); // forma fácil de pegar o último bloco livre.
-
-                                                                                    //int index = 0;
-
-                                                                                    //for(int i = 0; i < TAMANHO_HD; i++)
-                                                                                    //{
-                                                                                    //    bool livre = hd[i].EstaLivre;
-
-                                                                                    //    if (livre)
-                                                                                    //    {
-                                                                                    //        index = hd[i].Index;
-                                                                                    //        break;
-                                                                                    //    }
-
-                                                                                    //} forma mais primitiva e ruim de fazer kkkk ..
-                                                                                    // daria para fazer salvando o lastIndex tb que reduziria o tempo de execução. Mas como o objetivo do trabalho não é usar formas primitivas, usei LINQ mesmo.
-
-
-
+    int index = hd.Where(x => x.EstaLivre).Select(hd => hd.Index).FirstOrDefault();
+                                                                                  
     if (index == 100 || index + tamanho > 100)
     {
         Console.WriteLine($"O HD possui {100 - index} de armazenamento, e o arquivo enviado possui {tamanho} não é possível inserir!");
@@ -82,15 +65,6 @@ void Fragmentacao(string id, string conteudo, int tamanho)
 void Desfragmentar()
 {
     int index = 0;
-
-    //hd = hd.OrderBy(x => x.BlockId).Select(x => new Block
-    //{
-    //    BlockId = x.BlockId,
-    //    Dados = x.Dados,
-    //    EstaLivre = x.EstaLivre,
-    //    Index = index++ 
-    //}).ToArray();  Forma fácil de ordenar e reindexar os blocos do HD
-
 
     Block[] novoHd = new Block[TAMANHO_HD];
 
