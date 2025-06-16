@@ -1,4 +1,5 @@
 ﻿const int TAMANHO_HD = 100;
+const int TAMANHO_BUFFER_RAM = 10;
 
 Dictionary<string, string> dicio = new()
 {
@@ -64,38 +65,51 @@ void Fragmentacao(string id, string conteudo, int tamanho)
 
 void Desfragmentar()
 {
-    int index = 0;
-
-    Block[] novoHd = new Block[TAMANHO_HD];
-
-    List<string> arquivosVistos = new List<string>();
-    int lasIndex = 0;
+    List<Block> ramBuffer = new List<Block>();
+    List<Block> blocosOrdenados = new List<Block>();
 
     for (int i = 0; i < hd.Length; i++)
     {
-        string? idArq = hd[i].BlockId;
-
-        if (idArq != null && !arquivosVistos.Contains(idArq))
+        if (!hd[i].EstaLivre)
         {
-            for (int j = 0; j < TAMANHO_HD; j++)
-            {
-                if (hd[j].BlockId == idArq)
-                {
-                    Block newBlock = new Block
-                    {
-                        EstaLivre = false,
-                        Dados = hd[j].Dados,
-                        BlockId = idArq,
-                        Index = lasIndex
-                    };
-                    novoHd[lasIndex] = newBlock;
-                    lasIndex += 1;
-                }
-            }
+            ramBuffer.Add(hd[i]);
 
-            arquivosVistos.Add(idArq);
+            if (ramBuffer.Count >= TAMANHO_BUFFER_RAM)
+            {
+                blocosOrdenados.AddRange(ramBuffer.OrderBy(b => b.BlockId));
+                ramBuffer.Clear();
+            }
         }
     }
+
+    if (ramBuffer.Count > 0)
+    {
+        blocosOrdenados.AddRange(ramBuffer.OrderBy(b => b.BlockId));
+    }
+
+    for (int i = 0; i < hd.Length; i++)
+    {
+        hd[i].EstaLivre = true;
+        hd[i].Dados = null;
+        hd[i].BlockId = null;
+    }
+
+    int currentIndex = 0;
+    foreach (var block in blocosOrdenados.OrderBy(b => b.BlockId))
+    {
+        if (currentIndex >= TAMANHO_HD)
+        {
+            Console.WriteLine("[ERRO] HD sem espaço após desfragmentação!");
+            break;
+        }
+
+        hd[currentIndex].EstaLivre = false;
+        hd[currentIndex].Dados = block.Dados;
+        hd[currentIndex].BlockId = block.BlockId;
+        currentIndex++;
+    }
+
+    Console.WriteLine($"Desfragmentação concluída! Blocos ocupados: {blocosOrdenados.Count}");
 }
 
 
