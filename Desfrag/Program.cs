@@ -29,7 +29,7 @@ for (int i = 0; i < hd.Length; i++)
 }
 
 
-for(int i = 0; i < 100; i++)
+for (int i = 0; i < 100; i++)
 {
 
     int random = new Random().Next(1, 10);
@@ -47,7 +47,7 @@ Console.WriteLine("Desfragmentação concluída! Blocos do HD: \n");
 void Fragmentacao(string id, string conteudo, int tamanho)
 {
     int index = hd.Where(x => x.EstaLivre).Select(hd => hd.Index).FirstOrDefault();
-                                                                                  
+
     if (index == 100 || index + tamanho > 100)
     {
         Console.WriteLine($"O HD possui {100 - index} de armazenamento, e o arquivo enviado possui {tamanho} não é possível inserir!");
@@ -65,53 +65,135 @@ void Fragmentacao(string id, string conteudo, int tamanho)
 
 void Desfragmentar()
 {
-    List<Block> ramBuffer = new List<Block>();
-    List<Block> blocosOrdenados = new List<Block>();
+    int posicaoAtual = 0;
 
-    for (int i = 0; i < hd.Length; i++)
+    while (posicaoAtual < TAMANHO_HD)
     {
-        if (!hd[i].EstaLivre)
+        if (hd[posicaoAtual].EstaLivre)
         {
-            ramBuffer.Add(hd[i]);
+            posicaoAtual++;
+            continue;
+        }
 
-            if (ramBuffer.Count >= TAMANHO_BUFFER_RAM)
+        string idAtual = hd[posicaoAtual].BlockId;
+        int totalBlocosArquivo = ContarBlocos(idAtual);
+
+        bool jaContiguo = true;
+        for (int i = posicaoAtual; i < posicaoAtual + totalBlocosArquivo; i++)
+        {
+            if (i >= TAMANHO_HD || hd[i].BlockId != idAtual)
             {
-                blocosOrdenados.AddRange(ramBuffer.OrderBy(b => b.BlockId));
-                ramBuffer.Clear();
+                jaContiguo = false;
+                break;
             }
         }
-    }
 
-    if (ramBuffer.Count > 0)
-    {
-        blocosOrdenados.AddRange(ramBuffer.OrderBy(b => b.BlockId));
-    }
-
-    for (int i = 0; i < hd.Length; i++)
-    {
-        hd[i].EstaLivre = true;
-        hd[i].Dados = null;
-        hd[i].BlockId = null;
-    }
-
-    int currentIndex = 0;
-    foreach (var block in blocosOrdenados.OrderBy(b => b.BlockId))
-    {
-        if (currentIndex >= TAMANHO_HD)
+        if (jaContiguo)
         {
-            Console.WriteLine("[ERRO] HD sem espaço após desfragmentação!");
-            break;
+            posicaoAtual += totalBlocosArquivo;
+            continue;
         }
 
-        hd[currentIndex].EstaLivre = false;
-        hd[currentIndex].Dados = block.Dados;
-        hd[currentIndex].BlockId = block.BlockId;
-        currentIndex++;
+        OrganizarArquivo(idAtual, ref posicaoAtual);
     }
-
-    Console.WriteLine($"Desfragmentação concluída! Blocos ocupados: {blocosOrdenados.Count}");
 }
 
+void OrganizarArquivo(string idArquivo, ref int posicaoInicial)
+{
+    List<int> posicoesBlocos = new List<int>();
+    for (int i = 0; i < TAMANHO_HD; i++)
+    {
+        if (hd[i].BlockId == idArquivo)
+        {
+            posicoesBlocos.Add(i);
+        }
+    }
+
+    int blocosRestantes = posicoesBlocos.Count;
+    int posicaoAlvo = posicaoInicial;
+    int indicePosicoes = 0;
+
+    while (blocosRestantes > 0)
+    {
+        int blocosNestaIteracao = Math.Min(TAMANHO_BUFFER_RAM / 2, blocosRestantes);
+
+        List<Block> buffer = new List<Block>();
+        List<int> posicoesOriginais = new List<int>();
+
+        for (int i = 0; i < blocosNestaIteracao; i++)
+        {
+            if (indicePosicoes + i >= posicoesBlocos.Count) break;
+
+            int posOriginal = posicoesBlocos[indicePosicoes + i];
+            buffer.Add(hd[posOriginal]);
+            posicoesOriginais.Add(posOriginal);
+        }
+
+        for (int i = 0; i < buffer.Count; i++)
+        {
+            int posDesejada = posicaoAlvo + i;
+
+            if (posicoesOriginais[i] == posDesejada) continue;
+
+            if (!hd[posDesejada].EstaLivre && hd[posDesejada].BlockId != idArquivo)
+            {
+                int posTemp = EncontrarPosicaoLivre();
+                if (posTemp != -1)
+                {
+                    TrocarBlocos(posDesejada, posTemp);
+                }
+            }
+
+            TrocarBlocos(posicoesOriginais[i], posDesejada);
+        }
+
+        indicePosicoes += buffer.Count;
+        blocosRestantes -= buffer.Count;
+        posicaoAlvo += buffer.Count;
+    }
+
+    posicaoInicial += posicoesBlocos.Count;
+}
+
+int EncontrarPosicaoLivre()
+{
+    for (int i = 0; i < TAMANHO_HD; i++)
+    {
+        if (hd[i].EstaLivre) return i;
+    }
+    return -1;
+}
+
+void TrocarBlocos(int index1, int index2)
+{
+    Block temp = new Block
+    {
+        EstaLivre = hd[index1].EstaLivre,
+        Dados = hd[index1].Dados,
+        BlockId = hd[index1].BlockId
+    };
+
+    hd[index1].EstaLivre = hd[index2].EstaLivre;
+    hd[index1].Dados = hd[index2].Dados;
+    hd[index1].BlockId = hd[index2].BlockId;
+
+    hd[index2].EstaLivre = temp.EstaLivre;
+    hd[index2].Dados = temp.Dados;
+    hd[index2].BlockId = temp.BlockId;
+}
+
+int ContarBlocos(string id)
+{
+    int count = 0;
+    for (int i = 0; i < TAMANHO_HD; i++)
+    {
+        if (hd[i].BlockId == id)
+        {
+            count++;
+        }
+    }
+    return count;
+}
 
 class Block
 {
